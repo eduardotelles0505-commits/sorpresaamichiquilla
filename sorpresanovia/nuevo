@@ -1,0 +1,155 @@
+import os
+import random
+import time
+
+# --- 1. Crear  pila ---
+class Pila:
+    def __init__(self):
+        self.items = []
+
+    def apilar(self, valor):
+        self.items.append(valor)
+
+    def desapilar(self):
+        if not self.esta_vacia():
+            return self.items.pop()
+        return None
+
+    def cima(self):
+        return self.items[-1] if self.items else None
+
+    def esta_vacia(self):
+        return len(self.items) == 0
+
+
+# --- 2. Animación de los discos ---
+def crear_discos(n):
+    filas = n + 1
+    columnas = 2 * n + 3
+    matriz = []
+
+    for i in range(filas):
+        torre = []
+        centro = columnas // 2
+        for j in range(columnas):
+            if i == 0:
+                if j == centro:
+                    torre.append("|")
+                else:
+                    torre.append(" ")
+            else:
+                limite_izq = centro - i
+                limite_der = centro + i
+                if j == limite_izq:
+                    torre.append("[")
+                elif j == limite_der:
+                    torre.append("]")
+                elif limite_izq < j < limite_der:
+                    torre.append("=")
+                else:
+                    torre.append(" ")
+        matriz.append("".join(torre))
+    return matriz
+
+
+def dibujar_discos(disco_num):
+    print(matriz_global[disco_num], end="  ")
+
+
+def pintar_torres(movimientos_realizados, ultimo_movimiento="Ninguno"):
+    os.system("cls" if os.name == "nt" else "clear")
+
+    # Muestra los niveles de cada torre de arriba a abajo
+    for i in range(n, -1, -1):
+        for j in range(3):
+            disco = pilas[j].items[i] if i < len(pilas[j].items) else 0
+            dibujar_discos(disco)
+        print()
+
+    print("-" * ((2 * n + 3) * 3 + 6))
+    
+    # --- REGISTRO DE INTERACCIONES Y RAZONAMIENTO ALEATORIO ---
+    print(f"** Interacciones Totales: {len(movimientos_realizados)} **")
+    print(f"** Último movimiento efectuado: {ultimo_movimiento} **")
+    
+    # Muestra los últimos 5 movimientos para no saturar la pantalla
+    historial_reciente = movimientos_realizados[-5:] if movimientos_realizados else ["Sin movimientos"]
+    print(f"** Historial reciente: {', '.join(historial_reciente)} **\n")
+
+
+# --- 3. Función del acertijo ---
+def obtener_movimientos_validos():
+    """Calcula todas las jugadas válidas según las reglas de Hanoi."""
+    movimientos_validos = []
+    
+    for origen in range(3):
+        if pilas[origen].esta_vacia():
+            continue
+        
+        disco_origen = pilas[origen].cima()
+
+        for destino in range(3):
+            if origen == destino:
+                continue
+            
+            disco_destino = pilas[destino].cima()
+
+            # Regla: Se puede mover a una torre vacía o sobre un disco más grande
+            if disco_destino is None or disco_origen < disco_destino:
+                movimientos_validos.append((origen, destino))
+                
+    return movimientos_validos
+
+
+def resolver_aleatorio(max_intentos=150, velocidad=0.7):
+    movimientos_realizados = []
+    ultimo_movimiento = "Inicio del juego"
+    
+    # El objetivo es lograr que todos los n discos estén apilados en la Torre 3 (índice 2)
+    while len(pilas[2].items) < n and len(movimientos_realizados) < max_intentos:
+        pintar_torres(movimientos_realizados, ultimo_movimiento)
+        time.sleep(velocidad)
+
+        opciones = obtener_movimientos_validos()
+
+        # Evitar deshacer inmediatamente el último movimiento para reducir ciclos redundantes
+        if len(movimientos_realizados) > 0 and len(opciones) > 1:
+            origen_ant, destino_ant = movimientos_previos_raw[-1]
+            opciones_filtradas = [op for op in opciones if not (op[0] == destino_ant and op[1] == origen_ant)]
+            if opciones_filtradas:
+                opciones = opciones_filtradas
+
+        # La máquina elige de manera completamente aleatoria una opción válida
+        origen, destino = random.choice(opciones)
+        movimientos_previos_raw.append((origen, destino))
+
+        # Realizar el movimiento seleccionado
+        disco = pilas[origen].desapilar()
+        pilas[destino].apilar(disco)
+
+        texto_mov = f"Mover disco {disco} de Torre {origen + 1} a Torre {destino + 1}"
+        movimientos_realizados.append(f"T{origen + 1}->T{destino + 1}")
+        ultimo_movimiento = texto_mov
+
+    pintar_torres(movimientos_realizados, ultimo_movimiento)
+    
+    if len(pilas[2].items) == n:
+        print(f"\n¡La máquina logró resolver el rompecabezas en {len(movimientos_realizados)} pasos aleatorios!")
+    else:
+        print(f"\nSe alcanzó el límite máximo de {max_intentos} movimientos sin completar la torre.")
+
+
+# --- PROGRAMA PRINCIPAL ---
+if __name__ == "__main__":
+    n = int(input("Ingrese el número de discos de 2 a 4: "))
+
+    matriz_global = crear_discos(n)
+    pilas = [Pila(), Pila(), Pila()]
+    movimientos_previos_raw = []
+
+    # Se inicializan los discos en la Torre 1
+    for i in range(n, 0, -1):
+        pilas[0].apilar(i)
+
+    # Inicia la ejecución con toma de decisiones aleatoria
+    resolver_aleatorio(max_intentos=300, velocidad=0.2)
